@@ -6,9 +6,9 @@ import (
 	"net/http/pprof"
 	"os"
 
-	"github.com/dimfeld/httptreemux/v5"
 	"github.com/sourava/service/app/services/sales-api/handlers/debug/checkgrp"
 	"github.com/sourava/service/app/services/sales-api/handlers/v1/testgrp"
+	"github.com/sourava/service/foundation/web"
 	"go.uber.org/zap"
 )
 
@@ -39,17 +39,23 @@ type APIMuxConfig struct {
 
 
 // APIMux constructs a http.Handler with all application routes defined.
-func APIMux(cfg APIMuxConfig) *httptreemux.ContextMux {
-	mux := httptreemux.NewContextMux()
+func APIMux(cfg APIMuxConfig) *web.App {
+	app := web.NewApp(cfg.Shutdown)
+
+	v1(app, cfg)
+
+	return app
+}
+
+func v1(app *web.App, cfg APIMuxConfig) {
+	version := "v1"
 
 	// Register debug check endpoints.
 	tgh := testgrp.Handlers{
 		Log:   cfg.Log,
 	}
 
-	mux.Handle(http.MethodGet, "/v1/test", tgh.Test)
-
-	return mux
+	app.Handle(http.MethodGet, version, "/test", tgh.Test)
 }
 
 // DebugMux registers all the debug standard library routes and then custom
