@@ -55,6 +55,8 @@ kind-restart:
 
 kind-update: sales-api kind-load kind-restart
 
+kind-update-apply: all kind-load kind-restart
+
 kind-status:
 	kubectl get nodes -o wide
 	kubectl get svc -o wide
