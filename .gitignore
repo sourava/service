@@ -1,1 +1,5 @@
+# Binaries
+app/service/sales-api/sales-api
+
+# Mac
 .DS_Store

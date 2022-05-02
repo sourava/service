@@ -8,12 +8,15 @@ build:
 
 VERSION = 1.0
 
-all: service
+docker-clean:
+	docker system prune -f
 
-service:
+all: sales-api
+
+sales-api:
 	docker build \
-		-f zarf/docker/dockerfile \
-		-t service-amd64:${VERSION} \
+		-f zarf/docker/dockerfile.sales-api \
+		-t sales-api-amd64:${VERSION} \
 		--build-arg BUILD_REF=${VERSION} \
 		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
 		.
@@ -28,31 +31,33 @@ kind-up:
 		--image kindest/node:v1.23.4@sha256:0e34f0d0fd448aa2f2819cfd74e99fe5793a6e4938b328f657c8e3f81ee0dfb9 \
 		--name $(KIND_CLUSTER) \
 		--config zarf/k8s/kind/kind-config.yaml
+	kubectl config set-context --current --namespace=sales-system
 
 kind-down:
 	kind delete cluster --name $(KIND_CLUSTER)
 
 kind-load:
-	kind load docker-image service-amd64:$(VERSION) --name $(KIND_CLUSTER)
+	cd zarf/k8s/kind/sales-pod; kustomize edit set image sales-api-image=sales-api-amd64:${VERSION}
+	kind load docker-image sales-api-amd64:$(VERSION) --name $(KIND_CLUSTER)
 
 kind-apply:
-	cat zarf/k8s/base/service-pod/base-service.yaml | kubectl apply -f -
+	kustomize build zarf/k8s/kind/sales-pod | kubectl apply -f -
 
 kind-logs:
-	kubectl logs -l app=service --all-containers=true -f --tail=100 --namespace=service-system
+	kubectl logs -l app=sales --all-containers=true -f --tail=100
 
 kind-restart:
-	kubectl rollout restart deployment service-pod --namespace=service-system
+	kubectl rollout restart deployment sales-pod
 
-kind-update: service kind-load kind-restart
+kind-update: sales-api kind-load kind-restart
 
 kind-status:
 	kubectl get nodes -o wide
 	kubectl get svc -o wide
 	kubectl get pods -o wide --watch --all-namespaces
 
-kind-status-service:
-	kubectl get pods -o wide --watch --namespace=service-system
+kind-status-sales:
+	kubectl get pods -o wide --watch
 
 kind-describe:
-	kubectl describe pod -l app=service
+	kubectl describe pod -l app=sales
