@@ -12,16 +12,21 @@ import (
 func Logger(log *zap.SugaredLogger) web.Middleware {
 	m := func (handler web.Handler) web.Handler {
 		h := func (ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-			traceID := 00000
-			statuscode := http.StatusOK
-			now := time.Now()
+			contextValues, err := web.GetValues(ctx)
+			if err != nil {
+				return err
+			}
 
-			log.Info("request started", "traceID", traceID, "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
-			
-			err := handler(ctx, w, r);
-	
-			log.Info("request completed", "traceID", traceID, "method", r.Method, "path", r.URL.Path,  "remoteaddr", r.RemoteAddr, "statuscode", statuscode, "since", time.Since(now))
-	
+			log.Infow("request started", "traceid", contextValues.TraceID, "method", r.Method, "path", r.URL.Path,
+				"remoteaddr", r.RemoteAddr)
+
+			// Call the next handler.
+			err = handler(ctx, w, r)
+
+			log.Infow("request completed", "traceid", contextValues.TraceID, "method", r.Method, "path", r.URL.Path,
+				"remoteaddr", r.RemoteAddr, "statuscode", contextValues.StatusCode, "since", time.Since(contextValues.Now))
+
+			// Return the error so it can be handled further up the chain.
 			return err
 		}
 	
